@@ -121,6 +121,7 @@ namespace cam_lidar_calibration
         bool eval_solution(const Rotation& p, RotationCost& c);
         void init_genes(Rotation& p, const std::function<double(void)>& rnd01, const Rotation& initial_rotation,
                         double increment);
+        void set_cam_params(initial_parameters_t params);
 
         // Rotation and translation
         void SO_report_generation(int generation_number,

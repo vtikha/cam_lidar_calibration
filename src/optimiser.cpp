@@ -39,6 +39,12 @@ namespace cam_lidar_calibration
         p.z = initial_rot_trans.z + trans_vals.at(RandIndex) * rnd01();
     }
 
+    void Optimiser::set_cam_params(initial_parameters_t params)
+    {
+        printf("optimiser set cam params\n");
+        i_params_ = params;
+    };
+
     double Optimiser::perpendicularCost(const Rotation& rot)
     {
         // We do all the alignment of features in the lidar frame
