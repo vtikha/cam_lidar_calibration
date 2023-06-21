@@ -53,7 +53,12 @@ namespace cam_lidar_calibration
         private_nh.getParam("import_samples", import_samples);
         private_nh.getParam("num_lowestvoq", num_lowestvoq);
         private_nh.getParam("distance_offset_mm", distance_offset);
+        i_params.cameramat = cv::Mat::zeros(3, 3, CV_64F);
+        i_params.distcoeff = cv::Mat::eye(1, 5, CV_64F);
         loadParams(public_nh, i_params);
+        std::cout << "FeatureExtractor: camera matrix " << i_params.cameramat << std::endl;
+        std::cout << "FeatureExtractor: distcoeff " << i_params.distcoeff << std::endl;
+
         optimiser_ = std::make_shared<Optimiser>(i_params);
         ROS_INFO("Input parameters loaded");
 
@@ -83,8 +88,6 @@ namespace cam_lidar_calibration
         image_publisher = it_->advertise("camera_features", 1);
 
         valid_camera_info = false;
-        i_params.cameramat = cv::Mat::zeros(3, 3, CV_64F);
-        i_params.distcoeff = cv::Mat::eye(1, 4, CV_64F);
         camera_info_sub_ = public_nh.subscribe(i_params.camera_info, 20, &FeatureExtractor::callback_camerainfo, this);
 
         // Create folder for output if it does not exist
@@ -729,6 +732,11 @@ namespace cam_lidar_calibration
         // Plane normal vector magnitude
         cv::Point3d lidar_normal(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
         lidar_normal /= -cv::norm(lidar_normal);  // Normalise and flip the direction
+        
+        std::cout << "plane coefficients " << coefficients->values[0] << " " << 
+                coefficients->values[1] << " " <<  coefficients->values[2] << " " << coefficients->values[3]  << std::endl;
+        
+        std::cout << "lidar_normal " << lidar_normal << std::endl;
 
         // Project the inliers on the fitted plane
         // When it freezes the chessboard after capture, what you see are the inlier points (filtered from the original)
@@ -844,21 +852,43 @@ namespace cam_lidar_calibration
     void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPtr& image,
                                                    const PointCloud::ConstPtr& pointcloud)
     {
+        PointCloud::Ptr transformed_cloud (new PointCloud());
+        
+        Eigen::Affine3f T = Eigen::Affine3f::Identity();
+        float theta = M_PI; // 180 degrees in radians    // Rotate around y-axis
+        T(0, 0) = cos(theta);
+        T(0, 2) = sin(theta);
+        T(2, 0) = -sin(theta);
+        T(2, 2) = cos(theta);
+
+        // You can either apply transform_1 or transform_2; they are the same
+        pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
+
+        Eigen::Affine3f T1 = Eigen::Affine3f::Identity();
+        theta = - M_PI / 2; // 90 degrees in radians    // Rotate around z-axis
+        T1(0, 0) = cos(theta);
+        T1(0, 1) = sin(theta);
+        T1(1, 0) = -sin(theta);
+        T1(1, 1) = cos(theta);
+
+        // You can either apply transform_1 or transform_2; they are the same
+        pcl::transformPointCloud (*transformed_cloud, *transformed_cloud, T1);
+
         // Check if we have deduced the lidar ring count
         if (i_params.lidar_ring_count == 0)
         {
             // pcl::getMinMax3D only works on x,y,z
-            for (const auto& p : pointcloud->points)
+            for (const auto& p : transformed_cloud->points)
             {
                 if (p.ring + 1 > i_params.lidar_ring_count)
                 {
                     i_params.lidar_ring_count = p.ring + 1;
                 }
             }
-            lidar_frame_ = pointcloud->header.frame_id;
+            lidar_frame_ = transformed_cloud->header.frame_id;
         }
         PointCloud::Ptr cloud_bounded(new PointCloud);
-        distoffset_passthrough(pointcloud, cloud_bounded);
+        distoffset_passthrough(transformed_cloud, cloud_bounded);
 
         // Publish the experimental region point cloud
         bounded_cloud_pub_.publish(cloud_bounded);
@@ -1053,7 +1083,7 @@ namespace cam_lidar_calibration
             
             ROS_ASSERT( cv::imwrite( img_filepath,  cv_ptr->image ) );   
             pcl::io::savePCDFileASCII (target_pcd_filepath, *cloud_bounded);
-            pcl::io::savePCDFileASCII (full_pcd_filepath, *pointcloud);
+            pcl::io::savePCDFileASCII (full_pcd_filepath, *transformed_cloud);
             ROS_INFO_STREAM("Image and pcd file saved");
 
 
@@ -1072,7 +1102,8 @@ namespace cam_lidar_calibration
                 camera_info_file << "D: [" << i_params.distcoeff.at<double>(0)
                                         << "," << i_params.distcoeff.at<double>(1)
                                         << "," << i_params.distcoeff.at<double>(2)
-                                        << "," << i_params.distcoeff.at<double>(3) << "]\n";
+                                        << "," << i_params.distcoeff.at<double>(3)
+                                        << "," << i_params.distcoeff.at<double>(4) << "]\n";
                 camera_info_file << "K: [" << i_params.cameramat.at<double>(0,0)
                                         << ",0.0"
                                         << "," << i_params.cameramat.at<double>(0,2)
@@ -1088,6 +1119,36 @@ namespace cam_lidar_calibration
             // Push this sample to the optimiser
             optimiser_->samples.push_back(sample);
             *flag_ = Optimise::Request::READY;  // Reset the capture flag
+
+            // save samples in tmp file
+            std::string savesamplespath = newdatafolder + "/current_poses.csv";
+            std::ofstream save_samples;
+            save_samples.open(savesamplespath, std::ios_base::out | std::ios_base::trunc) ;
+
+            for (OptimisationSample s : optimiser_->samples){
+                save_samples << s.camera_centre.x << "," << s.camera_centre.y << "," << s.camera_centre.z << "\n";
+                save_samples << s.camera_normal.x << "," << s.camera_normal.y << "," << s.camera_normal.z << "\n";
+                for (auto cc : s.camera_corners) {
+                    save_samples << cc.x << "," << cc.y << "," << cc.z << "\n";
+                }
+                save_samples << s.lidar_centre.x << "," << s.lidar_centre.y << "," << s.lidar_centre.z << "\n";
+                save_samples << s.lidar_normal.x << "," << s.lidar_normal.y << "," << s.lidar_normal.z << "\n";
+                for (auto lc : s.lidar_corners) {
+                    save_samples << lc.x << "," << lc.y << "," << lc.z << "\n";
+                }
+                save_samples << s.angles_0[0] << "," << s.angles_0[1] << ",0\n";
+                save_samples << s.angles_1[0] << "," << s.angles_1[1] << ",0\n";
+                save_samples << s.widths[0] << "," << s.widths[1] << ",0\n";
+                save_samples << s.heights[0] << "," << s.heights[1] << ",0\n";
+                save_samples << s.distance_from_origin << ",0,0\n";
+                save_samples << s.pixeltometre << ",0,0\n";
+                save_samples << s.sample_num << ",0,0\n";
+            }
+            save_samples.close();
+            ROS_INFO_STREAM("Samples written to file: " << savesamplespath);
+            ROS_INFO_STREAM("All " << optimiser_->samples.size() << " samples saved");
+
+
             ROS_INFO("Ready for capture\n");
         }  // if (*flag_ == Optimise::Request::CAPTURE)
     }  // End of extractRegionOfInterest
