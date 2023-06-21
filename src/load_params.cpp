@@ -1,4 +1,6 @@
 #include "cam_lidar_calibration/load_params.h"
+#include <string>
+#include <vector>
 
 namespace cam_lidar_calibration
 {
@@ -18,6 +20,36 @@ namespace cam_lidar_calibration
         n.getParam("chessboard/translation_error/x", e_x);
         n.getParam("chessboard/translation_error/y", e_y);
         i_params.cb_translation_error = cv::Point3d(e_x, e_y, 0);
+
+        std::string distortion_model;
+        n.getParam("distortion_model", distortion_model);
+
+        std::vector<double> K, D;
+        n.getParam("K", K);
+        n.getParam("D", D);
+
+        std::cout << "dist model is " << distortion_model << std::endl;
+
+        if (distortion_model == "equidistant" or distortion_model == "fisheye") {
+            i_params.fisheye_model = true;
+        // Pinhole
+        } else 
+        {
+            i_params.fisheye_model = false;
+        }        
+
+        i_params.cameramat.at<double>(0, 0) = K[0];
+        i_params.cameramat.at<double>(0, 2) = K[2];
+        i_params.cameramat.at<double>(1, 1) = K[4];
+        i_params.cameramat.at<double>(1, 2) = K[5];
+        i_params.cameramat.at<double>(2, 2) = 1;
+
+        i_params.distcoeff.at<double>(0) = D[0];
+        i_params.distcoeff.at<double>(1) = D[1];
+        i_params.distcoeff.at<double>(2) = D[2];
+        i_params.distcoeff.at<double>(3) = D[3];
+        i_params.distcoeff.at<double>(4) = D[4];
+
     }
 }  // namespace cam_lidar_calibration
 
