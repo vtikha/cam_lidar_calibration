@@ -6,6 +6,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <ros/ros.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/common/transforms.h>
 #include <tf_conversions/tf_eigen.h>
 #include <cv_bridge/cv_bridge.h>
 #include <std_msgs/Float64MultiArray.h>
@@ -21,6 +22,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/calib3d.hpp>
+#include <nlohmann/json.hpp>
+
 
 double colmap[50][3]={{0,0,0.5385},{0,0,0.6154},{0,0,0.6923},{0,0,0.7692},{0,0,0.8462},{0,0,0.9231},{0,0,1.0000},{0,0.0769,1.0000},{0,0.1538,1.0000},{0,0.2308,1.0000},{0,0.3846,1.0000},
                       {0,0.4615,1.0000},{0,0.5385,1.0000},{0,0.6154,1.0000},{0,0.6923,1.0000},{0,0.7692,1.0000},{0,0.8462,1.0000},{0,0.9231,1.0000},{0,1.0000,1.0000},{0.0769,1.0000,0.9231},
@@ -130,7 +133,7 @@ class AssessCalibration {
 
             // Load in camera_info to cv::Mat
             cameramat = cv::Mat::zeros(3, 3, CV_64F);
-            distcoeff = cv::Mat::eye(1, 4, CV_64F);
+            distcoeff = cv::Mat::eye(1, 5, CV_64F);
             cameramat.at<double>(0, 0) = K[0];
             cameramat.at<double>(0, 2) = K[2];
             cameramat.at<double>(1, 1) = K[4];
@@ -216,6 +219,8 @@ class AssessCalibration {
             std::printf("- Error (pix) = %6.3f pix, stdev = %6.3f\n", mean_pe, stdev_pe);
             std::printf("- Error (mm)  = %6.3f mm , stdev = %6.3f\n\n\n", mean_pemm, stdev_pemm);
             
+            save_calibration_result(param_msg, mean_pe, stdev_pe, mean_pemm, stdev_pemm);
+
             if (visualise)
             {
                 std::string image_path = data_dir + "/images/pose" + std::to_string(visualise_pose_num) + ".png";
@@ -400,6 +405,37 @@ class AssessCalibration {
             stdev = sqrt(accum / (input_vec.size()-1));
         }
 
+        void save_calibration_result(std_msgs::Float64MultiArray::ConstPtr calib_data, 
+                            float mean_pe, 
+                            float stdev_pe, 
+                            float mean_pemm, 
+                            float stdev_pemm)
+        {
+            nlohmann::json jj;
+
+            jj["Error_mm"] = {
+                {"mean", mean_pemm},
+                {"std", stdev_pemm},
+            };
+
+            jj["Error_pixel"] = {
+                {"mean", mean_pe},
+                {"std", stdev_pe},
+            };
+
+            jj["camera_lidar"] = {
+                {"eu_roll", calib_data->data[0]},
+                {"eu_pitch", calib_data->data[1]},
+                {"eu_yaw", calib_data->data[2]},
+                {"tx", calib_data->data[3]},
+                {"ty", calib_data->data[4]},
+                {"tz", calib_data->data[5]},
+            };
+
+            std::ofstream o(data_dir + "/calibration_result.json");
+            o << jj << std::endl;
+        }
+
         
 
     private:
@@ -412,7 +448,7 @@ class AssessCalibration {
         int height, width;
         cv::Size board_dimensions;
 
-        std::string csv, data_dir;;
+        std::string csv, data_dir;
         int visualise_pose_num;
         bool visualise;
 
