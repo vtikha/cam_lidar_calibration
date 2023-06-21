@@ -4,6 +4,8 @@ project(cam_lidar_calibration)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
+add_compile_options(-g)
+
 find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
@@ -27,6 +29,10 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen3 REQUIRED)
 find_package(Qt5 REQUIRED Core Widgets)
+
+find_package(nlohmann_json REQUIRED
+    PATHS "/usr/lib/cmake/"
+)
 
 ## Setup include directories
 include_directories(
@@ -97,6 +103,7 @@ target_link_libraries(assess_node
         cam_lidar_calibration
         ${catkin_LIBRARIES}
         ${OpenCV_LIBS}
+        nlohmann_json
         )
 
 #############
