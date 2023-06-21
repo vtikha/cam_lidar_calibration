@@ -59,7 +59,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /gmsl/A0/image_color
+      Image Topic: /oak/rgb/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -153,7 +153,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: velodyne_front_link
+    Fixed Frame: PandarSwift
     Frame Rate: 30
   Name: root
   Tools:
