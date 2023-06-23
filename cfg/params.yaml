@@ -1,7 +1,7 @@
 # Topics
 camera_topic: "/oak/rgb/image_raw"
-camera_info: ""
-lidar_topic: "/hesai/pandar_points"
+camera_info: "/oak/rgb/camera_info"
+lidar_topic: "/lidar_calibration_utils/lidar_points"
 
 # Dynamic rqt_reconfigure default bounds
 feature_extraction:
@@ -19,8 +19,8 @@ chessboard:
     width: 5  
   square_length: 95
   board_dimension:
-    width: 610
-    height: 850
+    width: 594
+    height: 841
   translation_error:
     x: 0
     y: 0

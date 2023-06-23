@@ -123,22 +123,22 @@ namespace cam_lidar_calibration
         i_params.cameramat.at<double>(1, 2) = msg->K[5];
         i_params.cameramat.at<double>(2, 2) = 1;
 
-        i_params.distcoeff.at<double>(0) = msg->D[0];
-        i_params.distcoeff.at<double>(1) = msg->D[1];
-        i_params.distcoeff.at<double>(2) = msg->D[2];
-        i_params.distcoeff.at<double>(3) = msg->D[3];
+        // i_params.distcoeff.at<double>(0) = msg->D[0];
+        // i_params.distcoeff.at<double>(1) = msg->D[1];
+        // i_params.distcoeff.at<double>(2) = msg->D[2];
+        // i_params.distcoeff.at<double>(3) = msg->D[3];
 
         i_params.image_size = std::make_pair(msg->width, msg->height);
 
-        // Fisheye/equidistant
-        if (msg->distortion_model == "equidistant") {
-            i_params.fisheye_model = true;
-        // Pinhole
-        } else if (msg->distortion_model == "rational_polynomial" or msg->distortion_model == "plumb_bob") {
-            i_params.fisheye_model = false;
-        } else {
-            ROS_FATAL_STREAM("Camera model " << msg->distortion_model << " not supported");
-        }
+        // // Fisheye/equidistant
+        // if (msg->distortion_model == "equidistant") {
+        //     i_params.fisheye_model = true;
+        // // Pinhole
+        // } else if (msg->distortion_model == "rational_polynomial" or msg->distortion_model == "plumb_bob") {
+        //     i_params.fisheye_model = false;
+        // } else {
+        //     ROS_FATAL_STREAM("Camera model " << msg->distortion_model << " not supported");
+        // }
         valid_camera_info = true;
     }
 
