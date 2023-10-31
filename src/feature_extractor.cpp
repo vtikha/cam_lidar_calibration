@@ -566,6 +566,9 @@ namespace cam_lidar_calibration
             }
         }
 
+        ROS_WARN_STREAM("chessboardProjection(): K " << i_params.cameramat);
+        ROS_WARN_STREAM("chessboardProjection(): D " << i_params.distcoeff);
+
         // chessboard corners, middle square corners, board corners and centre
         std::vector<cv::Point3d> board_corners_3d;
         // Board corner coordinates from the centre of the chessboard
@@ -586,6 +589,7 @@ namespace cam_lidar_calibration
         std::vector<cv::Point2d> inner_cbcorner_pixels, board_image_pixels;
         cv::Mat rvec(3, 3, cv::DataType<double>::type);  // Initialization for pinhole and fisheye cameras
         cv::Mat tvec(3, 1, cv::DataType<double>::type);
+
 
         if (valid_camera_info) {
             if (i_params.fisheye_model)
@@ -632,6 +636,10 @@ namespace cam_lidar_calibration
         double pixdiagonal = sqrt(pow(inner_cbcorner_pixels.front().x-inner_cbcorner_pixels.back().x,2)+(pow(inner_cbcorner_pixels.front().y-inner_cbcorner_pixels.back().y,2)));
         double len_diagonal = sqrt(pow(corners_3d.front().x-corners_3d.back().x,2)+(pow(corners_3d.front().y-corners_3d.back().y,2)));
         metreperpixel_cbdiag = len_diagonal /(1000*pixdiagonal);
+
+        ROS_WARN_STREAM(" chessboardProjection(): rvec " << rvec);
+        ROS_WARN_STREAM(" chessboardProjection(): tvec " << tvec);
+
 
         // Return all the necessary coefficients
         return std::make_tuple(rvec, tvec, board_corners_3d);
@@ -1082,7 +1090,9 @@ namespace cam_lidar_calibration
             std::string target_pcd_filepath = newdatafolder + "/pcd/pose" + std::to_string(num_samples)  + "_target.pcd" ;              
             std::string full_pcd_filepath = newdatafolder + "/pcd/pose" + std::to_string(num_samples)  + "_full.pcd" ;              
             
-            ROS_ASSERT( cv::imwrite( img_filepath,  cv_ptr->image ) );   
+            ROS_WARN_STREAM("saving image at path " << img_filepath);
+            ROS_WARN_STREAM("saving image with size " << cv_ptr->image.size());
+            cv::imwrite( img_filepath,  cv_ptr->image );  
             pcl::io::savePCDFileASCII (target_pcd_filepath, *cloud_bounded);
             pcl::io::savePCDFileASCII (full_pcd_filepath, *transformed_cloud);
             ROS_INFO_STREAM("Image and pcd file saved");
