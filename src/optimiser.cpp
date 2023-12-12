@@ -375,6 +375,11 @@ namespace cam_lidar_calibration
         printf("| voq: %7.3f ", voq);
 
         std::vector<double> euler = rotm2eul(UNR);
+
+        euler[0] = 0.0;
+        euler[1] = 1.57;
+        euler[2] = 0.0;
+
         EA::Chronometer timer;
         timer.tic();
 
@@ -424,6 +429,7 @@ namespace cam_lidar_calibration
         // Reset starting point of rotation genes
         tf::Matrix3x3 rot;
         rot.setRPY(best_rotation_.roll, best_rotation_.pitch, best_rotation_.yaw);
+
         cv::Mat tmp_rot = (cv::Mat_<double>(3, 3) << rot.getRow(0)[0], rot.getRow(0)[1], rot.getRow(0)[2], rot.getRow(1)[0],
                 rot.getRow(1)[1], rot.getRow(1)[2], rot.getRow(2)[0], rot.getRow(2)[1], rot.getRow(2)[2]);
         // Analytical Translation
