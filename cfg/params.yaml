@@ -19,8 +19,8 @@ chessboard:
     width: 5  
   square_length: 95
   board_dimension:
-    width: 594
-    height: 841
+    width: 600
+    height: 800
   translation_error:
-    x: 0
-    y: 0
+    x: 5
+    y: 2

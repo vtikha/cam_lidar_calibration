@@ -44,11 +44,21 @@ namespace cam_lidar_calibration
         i_params.cameramat.at<double>(1, 2) = K[5];
         i_params.cameramat.at<double>(2, 2) = 1;
 
+
         i_params.distcoeff.at<double>(0) = D[0];
         i_params.distcoeff.at<double>(1) = D[1];
         i_params.distcoeff.at<double>(2) = D[2];
         i_params.distcoeff.at<double>(3) = D[3];
         i_params.distcoeff.at<double>(4) = D[4];
+        i_params.distcoeff.at<double>(5) = D[5];
+        i_params.distcoeff.at<double>(6) = D[6];
+        i_params.distcoeff.at<double>(7) = D[7];
+        i_params.distcoeff.at<double>(8) = D[8];
+        i_params.distcoeff.at<double>(9) = D[9];
+        i_params.distcoeff.at<double>(10) = D[10];
+        i_params.distcoeff.at<double>(11) = D[11];
+        i_params.distcoeff.at<double>(12) = D[12];
+        i_params.distcoeff.at<double>(13) = D[13];
 
     }
 }  // namespace cam_lidar_calibration

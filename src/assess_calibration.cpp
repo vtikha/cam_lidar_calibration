@@ -133,7 +133,7 @@ class AssessCalibration {
 
             // Load in camera_info to cv::Mat
             cameramat = cv::Mat::zeros(3, 3, CV_64F);
-            distcoeff = cv::Mat::eye(1, 5, CV_64F);
+            distcoeff = cv::Mat::eye(1, 14, CV_64F);
             cameramat.at<double>(0, 0) = K[0];
             cameramat.at<double>(0, 2) = K[2];
             cameramat.at<double>(1, 1) = K[4];
@@ -144,6 +144,16 @@ class AssessCalibration {
             distcoeff.at<double>(1) = D[1];
             distcoeff.at<double>(2) = D[2];
             distcoeff.at<double>(3) = D[3];
+            distcoeff.at<double>(4) = D[4];
+            distcoeff.at<double>(5) = D[5];
+            distcoeff.at<double>(6) = D[6];
+            distcoeff.at<double>(7) = D[7];
+            distcoeff.at<double>(8) = D[8];
+            distcoeff.at<double>(9) = D[9];
+            distcoeff.at<double>(10) = D[10];
+            distcoeff.at<double>(11) = D[11];
+            distcoeff.at<double>(12) = D[12];
+            distcoeff.at<double>(13) = D[13];
 
             param_msg = ros::topic::waitForMessage<std_msgs::Float64MultiArray>("/extrinsic_calib_param");
             if(param_msg != NULL){
@@ -384,6 +394,8 @@ class AssessCalibration {
             }
             else
             {
+                std::cout << " cameramat " << cameramat << std::endl;
+                std::cout << " distcoeff " << distcoeff << std::endl;
                 cv::projectPoints(cam_centre_3d, rvec, tvec, cameramat, distcoeff, cam);
                 cv::projectPoints(lidar_centre_3d, rvec, tvec, cameramat, distcoeff, lidar);
             }
