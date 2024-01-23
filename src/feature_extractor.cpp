@@ -55,7 +55,7 @@ namespace cam_lidar_calibration
         private_nh.getParam("num_lowestvoq", num_lowestvoq);
         private_nh.getParam("distance_offset_mm", distance_offset);
         i_params.cameramat = cv::Mat::zeros(3, 3, CV_64F);
-        i_params.distcoeff = cv::Mat::eye(1, 5, CV_64F);
+        i_params.distcoeff = cv::Mat::eye(1, 14, CV_64F);
         loadParams(public_nh, i_params);
         std::cout << "FeatureExtractor: camera matrix " << i_params.cameramat << std::endl;
         std::cout << "FeatureExtractor: distcoeff " << i_params.distcoeff << std::endl;
