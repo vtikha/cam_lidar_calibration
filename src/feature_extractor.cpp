@@ -102,6 +102,64 @@ namespace cam_lidar_calibration
             {
                 newdatafolder = import_path.substr(0, last_slash_idx);
             }
+
+            ROS_INFO_STREAM("Reading file: " << import_path);
+            std::ifstream read_samples(import_path);
+            
+            optimiser_->samples.resize(0);
+
+            // Read row by row into a Point3d vector
+            std::vector<cv::Point3d> row;
+            std::string line, word;
+
+            while (std::getline(read_samples, line, '\n')) {
+
+                // used for breaking up words
+                std::stringstream s(line);
+
+                // read every column data of a row and store it in a string variable, 'word'
+                std::vector<double> line_double;
+                while (getline(s, word, ',')) {
+                    line_double.push_back(atof(word.c_str()));
+                }
+                if (line_double.size() > 1){
+                    row.push_back({line_double[0], line_double[1], line_double[2]});
+                } else {
+                    row.push_back({line_double[0], 0, 0});
+                }
+            }
+
+            // Shove the double vector elements into the OptimiseSample struct
+            int sample_numrows = 19; // non-zero indexed, but the i value is.
+            for (int i = 0; i < row.size(); i+=sample_numrows) {
+                OptimisationSample temp;
+                temp.camera_centre = row[i];
+                temp.camera_normal = row[i+1];
+                for (int j = 0; j < 4; j++){
+                    temp.camera_corners.push_back(row[i+2+j]);
+                }
+                temp.lidar_centre = row[i+6];
+                temp.lidar_normal = row[i+7];
+                for (int k = 0; k < 4; k++){
+                    temp.lidar_corners.push_back(row[i+8+k]);
+                }
+                temp.angles_0.push_back(row[i+12].x);
+                temp.angles_0.push_back(row[i+12].y);
+                temp.angles_1.push_back(row[i+13].x);
+                temp.angles_1.push_back(row[i+13].y);
+                temp.widths.push_back(row[i+14].x);
+                temp.widths.push_back(row[i+14].y);
+                temp.heights.push_back(row[i+15].x);
+                temp.heights.push_back(row[i+15].y);
+                temp.distance_from_origin = row[i+16].x;
+                temp.pixeltometre = row[i+17].x;
+                temp.sample_num = row[i+sample_numrows-1].x;
+                optimiser_->samples.push_back(temp);
+            }
+
+            read_samples.close();
+            ROS_INFO_STREAM(optimiser_->samples.size() << " samples imported");
+            *flag_ = Optimise::Request::READY;  
         } else{
             std::string data_dir = ros::package::getPath("cam_lidar_calibration") + "/data";
             // Successful capture, store jpeg and pcd file
@@ -117,18 +175,18 @@ namespace cam_lidar_calibration
 
     void FeatureExtractor::callback_camerainfo(const sensor_msgs::CameraInfo::ConstPtr &msg) {
 
-        i_params.cameramat.at<double>(0, 0) = msg->K[0];
-        i_params.cameramat.at<double>(0, 2) = msg->K[2];
-        i_params.cameramat.at<double>(1, 1) = msg->K[4];
-        i_params.cameramat.at<double>(1, 2) = msg->K[5];
-        i_params.cameramat.at<double>(2, 2) = 1;
+        // i_params.cameramat.at<double>(0, 0) = msg->K[0];
+        // i_params.cameramat.at<double>(0, 2) = msg->K[2];
+        // i_params.cameramat.at<double>(1, 1) = msg->K[4];
+        // i_params.cameramat.at<double>(1, 2) = msg->K[5];
+        // i_params.cameramat.at<double>(2, 2) = 1;
 
         // i_params.distcoeff.at<double>(0) = msg->D[0];
         // i_params.distcoeff.at<double>(1) = msg->D[1];
         // i_params.distcoeff.at<double>(2) = msg->D[2];
         // i_params.distcoeff.at<double>(3) = msg->D[3];
 
-        i_params.image_size = std::make_pair(msg->width, msg->height);
+        // i_params.image_size = std::make_pair(msg->width, msg->height);
 
         // // Fisheye/equidistant
         // if (msg->distortion_model == "equidistant") {
@@ -421,7 +479,7 @@ namespace cam_lidar_calibration
         std::cout << "Optimisation Completed in " << timer_all.toc() << "s\n" << std::endl;
         ROS_INFO("====== END ======");
 
-        ros::shutdown();
+        // ros::shutdown();
         return;
 
         // // Not in use
