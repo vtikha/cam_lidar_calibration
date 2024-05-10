@@ -42,14 +42,14 @@ int main(int argc, char** argv)
 
     while (ros::ok())
     {
-        // if (feature_extractor.import_samples) 
-        // {
-        //     actionlib::SimpleActionClient<cam_lidar_calibration::RunOptimiseAction> action_client("run_optimise", true);
-        //     action_client.waitForServer();
-        //     cam_lidar_calibration::RunOptimiseGoal goal;
-        //     action_client.sendGoal(goal);
-        //     break;
-        // }
+        if (feature_extractor.import_samples) 
+        {
+            actionlib::SimpleActionClient<cam_lidar_calibration::RunOptimiseAction> action_client("run_optimise", true);
+            action_client.waitForServer();
+            cam_lidar_calibration::RunOptimiseGoal goal;
+            action_client.sendGoal(goal);
+            break;
+        }
 
         feature_extractor.visualiseSamples();
         loop_rate.sleep();
