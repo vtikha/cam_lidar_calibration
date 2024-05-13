@@ -19,7 +19,8 @@
 #define load_params_h_
 
 #include <ros/ros.h>
-
+#include <string>
+#include <vector>
 #include <opencv2/core/mat.hpp>
 
 namespace cam_lidar_calibration

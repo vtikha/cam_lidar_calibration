@@ -24,7 +24,7 @@
 
 #include <fstream>
 #include <iostream>
-#include <opencv/cv.hpp>
+#include <opencv2/opencv.hpp>
 #include <string>
 
 #include "cam_lidar_calibration/load_params.h"
@@ -151,6 +151,8 @@ public:
 
   void init_genes(Rotation& p, const std::function<double(void)>& rnd01, const Rotation& initial_rotation,
                   double increment);
+
+  void set_cam_params(initial_parameters_t params);
 
   // Rotation and translation
   void SO_report_generation(int generation_number,
