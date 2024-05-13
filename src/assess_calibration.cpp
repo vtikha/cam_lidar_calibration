@@ -18,6 +18,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/common/transforms.h>
 #include <pcl_ros/point_cloud.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -35,6 +36,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <string>
+#include <nlohmann/json.hpp>
 
 #include "cam_lidar_calibration/point_xyzir.h"
 
@@ -165,7 +167,7 @@ public:
 
     // Load in camera_info to cv::Mat
     cameramat = cv::Mat::zeros(3, 3, CV_64F);
-    distcoeff = cv::Mat::eye(1, 4, CV_64F);
+    distcoeff = cv::Mat::eye(1, 14, CV_64F);
     cameramat.at<double>(0, 0) = K[0];
     cameramat.at<double>(0, 2) = K[2];
     cameramat.at<double>(1, 1) = K[4];
@@ -176,6 +178,16 @@ public:
     distcoeff.at<double>(1) = D[1];
     distcoeff.at<double>(2) = D[2];
     distcoeff.at<double>(3) = D[3];
+    distcoeff.at<double>(4) = D[4];
+    distcoeff.at<double>(5) = D[5];
+    distcoeff.at<double>(6) = D[6];
+    distcoeff.at<double>(7) = D[7];
+    distcoeff.at<double>(8) = D[8];
+    distcoeff.at<double>(9) = D[9];
+    distcoeff.at<double>(10) = D[10];
+    distcoeff.at<double>(11) = D[11];
+    distcoeff.at<double>(12) = D[12];
+    distcoeff.at<double>(13) = D[13];
 
     param_msg = ros::topic::waitForMessage<std_msgs::Float64MultiArray>("/extrinsic_calib_param");
     if (param_msg != NULL)
@@ -272,6 +284,8 @@ public:
 
     printf("- Error (pix) = %6.3f pix, stdev = %6.3f\n", mean_pe, stdev_pe);
     printf("- Error (mm)  = %6.3f mm , stdev = %6.3f\n\n\n", mean_pemm, stdev_pemm);
+
+    save_calibration_result(param_msg, mean_pe, stdev_pe, mean_pemm, stdev_pemm);
 
     if (visualise)
     {
@@ -467,6 +481,8 @@ public:
     }
     else
     {
+      std::cout << " cameramat " << cameramat << std::endl;
+      std::cout << " distcoeff " << distcoeff << std::endl;
       cv::projectPoints(cam_centre_3d, rvec, tvec, cameramat, distcoeff, cam);
       cv::projectPoints(lidar_centre_3d, rvec, tvec, cameramat, distcoeff, lidar);
     }
@@ -474,6 +490,37 @@ public:
     float pixel_error = cv::norm(cam[0] - lidar[0]);
     return pixel_error;
   }
+
+  void save_calibration_result(std_msgs::Float64MultiArray::ConstPtr calib_data, 
+                            float mean_pe, 
+                            float stdev_pe, 
+                            float mean_pemm, 
+                            float stdev_pemm)
+        {
+            nlohmann::json jj;
+
+            jj["Error_mm"] = {
+                {"mean", mean_pemm},
+                {"std", stdev_pemm},
+            };
+
+            jj["Error_pixel"] = {
+                {"mean", mean_pe},
+                {"std", stdev_pe},
+            };
+
+            jj["camera_lidar"] = {
+                {"eu_roll", calib_data->data[0]},
+                {"eu_pitch", calib_data->data[1]},
+                {"eu_yaw", calib_data->data[2]},
+                {"tx", calib_data->data[3]},
+                {"ty", calib_data->data[4]},
+                {"tz", calib_data->data[5]},
+            };
+
+            std::ofstream o(data_dir + "/calibration_result.json");
+            o << jj << std::endl;
+        }
 
   void get_mean_stdev(std::vector<float>& input_vec, float& mean, float& stdev)
   {
@@ -497,7 +544,6 @@ private:
   cv::Size board_dimensions;
 
   std::string csv, data_dir;
-  ;
   int visualise_pose_num;
   bool visualise;
 

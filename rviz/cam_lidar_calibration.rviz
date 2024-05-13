@@ -54,7 +54,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /image
+      Image Topic: /oak/rgb/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -206,7 +206,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: os_sensor
+    Fixed Frame: PandarSwift
     Frame Rate: 30
   Name: root
   Tools:

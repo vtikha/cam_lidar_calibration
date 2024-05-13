@@ -20,6 +20,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <pcl/common/intersections.h>
+#include <pcl/common/transforms.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/project_inliers.h>
@@ -68,7 +69,12 @@ FeatureExtractor::FeatureExtractor()
   private_nh_.getParam("import_samples", import_samples);
   private_nh_.getParam("num_lowestvoq", num_lowestvoq_);
   private_nh_.getParam("distance_offset_mm", distance_offset_);
+  i_params.cameramat = cv::Mat::zeros(3, 3, CV_64F);
+  i_params.distcoeff = cv::Mat::eye(1, 14, CV_64F);
   loadParams(public_nh_, i_params_);
+  std::cout << "FeatureExtractor: camera matrix " << i_params.cameramat << std::endl;
+  std::cout << "FeatureExtractor: distcoeff " << i_params.distcoeff << std::endl;
+
   optimiser_ = std::make_shared<Optimiser>(i_params_);
   ROS_INFO("Input parameters loaded");
 
@@ -98,8 +104,8 @@ FeatureExtractor::FeatureExtractor()
   image_publisher_ = it_->advertise("camera_features", 1);
 
   valid_camera_info_ = false;
-  i_params_.cameramat = cv::Mat::zeros(3, 3, CV_64F);
-  i_params_.distcoeff = cv::Mat::eye(1, 4, CV_64F);
+  // i_params_.cameramat = cv::Mat::zeros(3, 3, CV_64F);
+  // i_params_.distcoeff = cv::Mat::eye(1, 4, CV_64F);
   camera_info_sub_ = public_nh_.subscribe(i_params_.camera_info, 20, &FeatureExtractor::callback_camerainfo, this);
 
   // Create folder for output if it does not exist
@@ -131,34 +137,34 @@ FeatureExtractor::FeatureExtractor()
 
 void FeatureExtractor::callback_camerainfo(const sensor_msgs::CameraInfo::ConstPtr& msg)
 {
-  i_params_.cameramat.at<double>(0, 0) = msg->K[0];
-  i_params_.cameramat.at<double>(0, 2) = msg->K[2];
-  i_params_.cameramat.at<double>(1, 1) = msg->K[4];
-  i_params_.cameramat.at<double>(1, 2) = msg->K[5];
-  i_params_.cameramat.at<double>(2, 2) = 1;
+  // i_params_.cameramat.at<double>(0, 0) = msg->K[0];
+  // i_params_.cameramat.at<double>(0, 2) = msg->K[2];
+  // i_params_.cameramat.at<double>(1, 1) = msg->K[4];
+  // i_params_.cameramat.at<double>(1, 2) = msg->K[5];
+  // i_params_.cameramat.at<double>(2, 2) = 1;
 
-  i_params_.distcoeff.at<double>(0) = msg->D[0];
-  i_params_.distcoeff.at<double>(1) = msg->D[1];
-  i_params_.distcoeff.at<double>(2) = msg->D[2];
-  i_params_.distcoeff.at<double>(3) = msg->D[3];
+  // i_params_.distcoeff.at<double>(0) = msg->D[0];
+  // i_params_.distcoeff.at<double>(1) = msg->D[1];
+  // i_params_.distcoeff.at<double>(2) = msg->D[2];
+  // i_params_.distcoeff.at<double>(3) = msg->D[3];
 
-  i_params_.image_size = std::make_pair(msg->width, msg->height);
+  // i_params_.image_size = std::make_pair(msg->width, msg->height);
 
-  // Fisheye/equidistant
-  if (msg->distortion_model == "equidistant")
-  {
-    i_params_.fisheye_model = true;
-    // Pinhole
-  }
-  else if (msg->distortion_model == "rational_polynomial" || msg->distortion_model == "plumb_bob")
-  {
-    i_params_.fisheye_model = false;
-  }
-  else
-  {
-    ROS_FATAL_STREAM("Camera model " << msg->distortion_model << " not supported");
-  }
-  valid_camera_info_ = true;
+  // // Fisheye/equidistant
+  // if (msg->distortion_model == "equidistant")
+  // {
+  //   i_params_.fisheye_model = true;
+  //   // Pinhole
+  // }
+  // else if (msg->distortion_model == "rational_polynomial" || msg->distortion_model == "plumb_bob")
+  // {
+  //   i_params_.fisheye_model = false;
+  // }
+  // else
+  // {
+  //   ROS_FATAL_STREAM("Camera model " << msg->distortion_model << " not supported");
+  // }
+  // valid_camera_info_ = true;
 }
 
 bool FeatureExtractor::serviceCB(Optimise::Request& req, Optimise::Response& res)
@@ -623,6 +629,9 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
     }
   }
 
+  ROS_WARN_STREAM("chessboardProjection(): K " << i_params.cameramat);
+  ROS_WARN_STREAM("chessboardProjection(): D " << i_params.distcoeff);
+
   // chessboard corners, middle square corners, board corners and centre
   std::vector<cv::Point3d> board_corners_3d;
   // Board corner coordinates from the centre of the chessboard
@@ -715,6 +724,9 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
 
   metreperpixel_cbdiag_ = len_diagonal / (1000 * pixdiagonal);
 
+  ROS_WARN_STREAM(" chessboardProjection(): rvec " << rvec);
+  ROS_WARN_STREAM(" chessboardProjection(): tvec " << tvec);
+
   // Return all the necessary coefficients
   return std::make_tuple(rvec, tvec, board_corners_3d);
 }
@@ -802,6 +814,11 @@ FeatureExtractor::extractBoard(const PointCloud::Ptr& cloud, OptimisationSample&
   // Plane normal vector magnitude
   cv::Point3d lidar_normal(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
   lidar_normal /= -cv::norm(lidar_normal);  // Normalise and flip the direction
+
+  std::cout << "plane coefficients " << coefficients->values[0] << " " << 
+                coefficients->values[1] << " " <<  coefficients->values[2] << " " << coefficients->values[3]  << std::endl;
+
+  std::cout << "lidar_normal " << lidar_normal << std::endl;
 
   // Project the inliers on the fitted plane
   // When it freezes the chessboard after capture, what you see are the inlier
@@ -930,22 +947,45 @@ void FeatureExtractor::distoffset_passthrough(const PointCloud::ConstPtr& input_
 void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPtr& image,
                                                const PointCloud::ConstPtr& pointcloud)
 {
+  PointCloud::Ptr transformed_cloud (new PointCloud());
+
+  Eigen::Affine3f T = Eigen::Affine3f::Identity();
+  float theta = M_PI; // 180 degrees in radians    // Rotate around y-axis
+  T(0, 0) = cos(theta);
+  T(0, 2) = sin(theta);
+  T(2, 0) = -sin(theta);
+  T(2, 2) = cos(theta);
+
+  // You can either apply transform_1 or transform_2; they are the same
+  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
+
+  Eigen::Affine3f T1 = Eigen::Affine3f::Identity();
+  theta = - M_PI / 2; // 90 degrees in radians    // Rotate around z-axis
+  T1(0, 0) = cos(theta);
+  T1(0, 1) = sin(theta);
+  T1(1, 0) = -sin(theta);
+  T1(1, 1) = cos(theta);
+
+  // You can either apply transform_1 or transform_2; they are the same
+  pcl::transformPointCloud (*transformed_cloud, *transformed_cloud, T1);
+
+
   // Check if we have deduced the lidar ring count
   if (i_params_.lidar_ring_count == 0)
   {
     // pcl::getMinMax3D only works on x,y,z
-    for (const auto& p : pointcloud->points)
+    for (const auto& p : transformed_cloud->points)
     {
       if (p.ring + 1 > i_params_.lidar_ring_count)
       {
         i_params_.lidar_ring_count = p.ring + 1;
       }
     }
-    lidar_frame_ = pointcloud->header.frame_id;
+    lidar_frame_ = transformed_cloud->header.frame_id;
   }
 
   PointCloud::Ptr distoffset_cloud(new PointCloud);
-  distoffset_passthrough(pointcloud, distoffset_cloud);
+  distoffset_passthrough(transformed_cloud, distoffset_cloud);
   experimental_region_pub_.publish(distoffset_cloud);
 
   if (flag == Optimise::Request::CAPTURE_BCKGRND)
@@ -1224,10 +1264,10 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
         std::string img_filepath = newdata_folder_ + "/images/pose" + std::to_string(num_samples_) + ".png";
         std::string target_pcd_filepath = newdata_folder_ + "/pcd/pose" + std::to_string(num_samples_) + "_target.pcd";
         std::string full_pcd_filepath = newdata_folder_ + "/pcd/pose" + std::to_string(num_samples_) + "_full.pcd";
-
-        ROS_ASSERT(cv::imwrite(img_filepath, cv_ptr->image));
+        ROS_WARN_STREAM("saving image at path " << img_filepath);
+        cv::imwrite(img_filepath, cv_ptr->image);
         pcl::io::savePCDFileASCII(target_pcd_filepath, *cloud_filtered);
-        pcl::io::savePCDFileASCII(full_pcd_filepath, *pointcloud);
+        pcl::io::savePCDFileASCII(full_pcd_filepath, *transformed_cloud);
         ROS_INFO_STREAM("Image and pcd file saved");
 
         if (num_samples_ == 1)
@@ -1235,27 +1275,56 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
           // Check if save_dir has camera_info topic saved
           std::string pkg_path = ros::package::getPath("cam_lidar_calibration");
 
-          std::ofstream camera_info_file;
-          std::string camera_info_path = pkg_path + "/cfg/camera_info.yaml";
-          ROS_INFO_STREAM("Camera_info saved at: " << camera_info_path);
-          camera_info_file.open(camera_info_path, std::ios_base::out | std::ios_base::trunc);
-          std::string dist_model = (i_params_.fisheye_model) ? "fisheye" : "non-fisheye";
-          camera_info_file << "distortion_model: \"" << dist_model << "\"\n";
-          camera_info_file << "width: " << i_params_.image_size.first << "\n";
-          camera_info_file << "height: " << i_params_.image_size.second << "\n";
-          camera_info_file << "D: [" << i_params_.distcoeff.at<double>(0) << "," << i_params_.distcoeff.at<double>(1)
-                           << "," << i_params_.distcoeff.at<double>(2) << "," << i_params_.distcoeff.at<double>(3)
-                           << "]\n";
-          camera_info_file << "K: [" << i_params_.cameramat.at<double>(0, 0) << ",0.0"
-                           << "," << i_params_.cameramat.at<double>(0, 2) << ",0.0"
-                           << "," << i_params_.cameramat.at<double>(1, 1) << "," << i_params_.cameramat.at<double>(1, 2)
-                           << ",0.0,0.0"
-                           << "," << i_params_.cameramat.at<double>(2, 2) << "]\n";
-          camera_info_file.close();
+          // std::ofstream camera_info_file;
+          // std::string camera_info_path = pkg_path + "/cfg/camera_info.yaml";
+          // ROS_INFO_STREAM("Camera_info saved at: " << camera_info_path);
+          // camera_info_file.open(camera_info_path, std::ios_base::out | std::ios_base::trunc);
+          // std::string dist_model = (i_params_.fisheye_model) ? "fisheye" : "non-fisheye";
+          // camera_info_file << "distortion_model: \"" << dist_model << "\"\n";
+          // camera_info_file << "width: " << i_params_.image_size.first << "\n";
+          // camera_info_file << "height: " << i_params_.image_size.second << "\n";
+          // camera_info_file << "D: [" << i_params_.distcoeff.at<double>(0) << "," << i_params_.distcoeff.at<double>(1)
+          //                  << "," << i_params_.distcoeff.at<double>(2) << "," << i_params_.distcoeff.at<double>(3)
+          //                  << "]\n";
+          // camera_info_file << "K: [" << i_params_.cameramat.at<double>(0, 0) << ",0.0"
+          //                  << "," << i_params_.cameramat.at<double>(0, 2) << ",0.0"
+          //                  << "," << i_params_.cameramat.at<double>(1, 1) << "," << i_params_.cameramat.at<double>(1, 2)
+          //                  << ",0.0,0.0"
+          //                  << "," << i_params_.cameramat.at<double>(2, 2) << "]\n";
+          // camera_info_file.close();
         }
       }
 
       flag = Optimise::Request::READY;
+
+      // save samples in tmp file
+      std::string savesamplespath = newdata_folder_ + "/current_poses.csv";
+      std::ofstream save_samples;
+      save_samples.open(savesamplespath, std::ios_base::out | std::ios_base::trunc) ;
+
+      for (OptimisationSample s : optimiser_->samples){
+          save_samples << s.camera_centre.x << "," << s.camera_centre.y << "," << s.camera_centre.z << "\n";
+          save_samples << s.camera_normal.x << "," << s.camera_normal.y << "," << s.camera_normal.z << "\n";
+          for (auto cc : s.camera_corners) {
+              save_samples << cc.x << "," << cc.y << "," << cc.z << "\n";
+          }
+          save_samples << s.lidar_centre.x << "," << s.lidar_centre.y << "," << s.lidar_centre.z << "\n";
+          save_samples << s.lidar_normal.x << "," << s.lidar_normal.y << "," << s.lidar_normal.z << "\n";
+          for (auto lc : s.lidar_corners) {
+              save_samples << lc.x << "," << lc.y << "," << lc.z << "\n";
+          }
+          save_samples << s.angles_0[0] << "," << s.angles_0[1] << ",0\n";
+          save_samples << s.angles_1[0] << "," << s.angles_1[1] << ",0\n";
+          save_samples << s.widths[0] << "," << s.widths[1] << ",0\n";
+          save_samples << s.heights[0] << "," << s.heights[1] << ",0\n";
+          save_samples << s.distance_from_origin << ",0,0\n";
+          save_samples << s.pixeltometre << ",0,0\n";
+          save_samples << s.sample_num << ",0,0\n";
+      }
+      save_samples.close();
+      ROS_INFO_STREAM("Samples written to file: " << savesamplespath);
+      ROS_INFO_STREAM("All " << optimiser_->samples.size() << " samples saved");
+
       num_of_pc_frames_ = 0;
       num_invalid_samples_ = 0;
       samples_.clear();

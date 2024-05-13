@@ -63,6 +63,12 @@ void Optimiser::init_genes(RotationTranslation& p, const std::function<double(vo
   p.z = initial_rot_trans.z + trans_vals.at(RandIndex) * rnd01();
 }
 
+void Optimiser::set_cam_params(initial_parameters_t params)
+{
+    printf("optimiser set cam params\n");
+    i_params_ = params;
+};
+
 double Optimiser::perpendicularCost(const Rotation& rot)
 {
   // We do all the alignment of features in the lidar frame
@@ -453,7 +459,7 @@ bool Optimiser::optimise(RotationTranslation& opt_result, std::vector<Optimisati
   cv::Mat cp_trans = tmp_rot * camera_centres_.t();
   cv::Mat trans_diff = lidar_centres_.t() - cp_trans;
   cv::Mat summed_diff;
-  cv::reduce(trans_diff, summed_diff, 1, CV_REDUCE_SUM, CV_64F);
+  cv::reduce(trans_diff, summed_diff, 1, cv::ReduceTypes::REDUCE_SUM, CV_64F);
   summed_diff = summed_diff / trans_diff.cols;
   const RotationTranslation initial_rotation_translation{ best_rotation_, summed_diff.at<double>(0),
                                                           summed_diff.at<double>(1), summed_diff.at<double>(2) };
