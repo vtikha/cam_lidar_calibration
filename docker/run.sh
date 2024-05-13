@@ -44,7 +44,7 @@ while true; do
   esac
 done
 
-if [ $CUDA == "on" ]; 
+if [ $CUDA == "on" ];
 then
     ENVS="--env=NVIDIA_VISIBLE_DEVICES=all
 	  --env=NVIDIA_DRIVER_CAPABILITIES=all
@@ -55,7 +55,8 @@ then
 else
 	ENVS="--env=XAUTHORITY=/home/$(id -un)/.Xauthority
 		  --env=ROS_IP=127.0.0.1
-		  --env=DISPLAY=$DISPLAY"
+		  --env=DISPLAY=$DISPLAY
+      --device=/dev/dri:/dev/dri"
 	echo "Running docker for cpu"
 fi
 

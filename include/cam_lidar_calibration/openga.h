@@ -2,18 +2,19 @@
 // Mozilla Public License Version 2.0.
 
 #pragma once
-#include <vector>
-#include <random>
-#include <chrono>
-#include <thread>
-#include <ctime>
-#include <string>
-#include <iostream>
-#include <stdexcept>
 #include <assert.h>
-#include <limits>
+
 #include <algorithm>
+#include <chrono>
+#include <ctime>
 #include <functional>
+#include <iostream>
+#include <limits>
+#include <random>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
 
 #ifndef NS_EA_BEGIN
 #define NS_EA_BEGIN                                                                                                    \
@@ -401,7 +402,8 @@ public:
       {
         reference_vector_divisions = 2;
         if (N_robj == 1)
-          throw std::runtime_error("The length of objective vector is 1 in a multi-objective optimization");
+          throw std::runtime_error("The length of objective vector is 1 in a multi-objective "
+                                   "optimization");
         while (get_number_reference_vectors(N_robj, reference_vector_divisions + 1) <= (int)population)
           reference_vector_divisions++;
         if (verbose)
@@ -592,13 +594,15 @@ protected:
       if (calculate_MO_objectives != nullptr)
         throw runtime_error("calculate_MO_objectives is not null in interactive mode!");
       if (distribution_objective_reductions != nullptr)
-        throw runtime_error("distribution_objective_reductions is not null in interactive mode!");
+        throw runtime_error("distribution_objective_reductions is not null in interactive "
+                            "mode!");
       if (MO_report_generation != nullptr)
         throw runtime_error("MO_report_generation is not null in interactive mode!");
       if (eval_solution_IGA == nullptr)
         throw runtime_error("eval_solution_IGA is null in interactive mode!");
       if (eval_solution != nullptr)
-        throw runtime_error("eval_solution is not null in interactive mode (use eval_solution_IGA instead)!");
+        throw runtime_error("eval_solution is not null in interactive mode (use "
+                            "eval_solution_IGA instead)!");
     }
     else
     {
@@ -615,7 +619,8 @@ protected:
         if (calculate_MO_objectives != nullptr)
           throw runtime_error("calculate_MO_objectives is not null in single objective mode!");
         if (distribution_objective_reductions != nullptr)
-          throw runtime_error("distribution_objective_reductions is not null in single objective mode!");
+          throw runtime_error("distribution_objective_reductions is not null in single "
+                              "objective mode!");
         if (MO_report_generation != nullptr)
           throw runtime_error("MO_report_generation is not null in single objective mode!");
       }
@@ -626,7 +631,8 @@ protected:
         if (calculate_MO_objectives == nullptr)
           throw runtime_error("calculate_MO_objectives is null in multi-objective mode!");
         // if(distribution_objective_reductions==nullptr)
-        // 	throw runtime_error("distribution_objective_reductions is null in multi-objective mode!");
+        // 	throw runtime_error("distribution_objective_reductions is null
+        // in multi-objective mode!");
         if (MO_report_generation == nullptr)
           throw runtime_error("MO_report_generation is null in multi-objective mode!");
       }
@@ -645,16 +651,20 @@ protected:
     if (is_single_objective())
     {  // SO (including IGA)
       if (SO_report_generation == nullptr)
-        throw runtime_error("SO_report_generation is not adjusted while problem mode is single-objective");
+        throw runtime_error("SO_report_generation is not adjusted while problem mode is "
+                            "single-objective");
       if (MO_report_generation != nullptr)
-        throw runtime_error("MO_report_generation is adjusted while problem mode is single-objective");
+        throw runtime_error("MO_report_generation is adjusted while problem mode is "
+                            "single-objective");
     }
     else
     {
       if (SO_report_generation != nullptr)
-        throw runtime_error("SO_report_generation is adjusted while problem mode is multi-objective");
+        throw runtime_error("SO_report_generation is adjusted while problem mode is "
+                            "multi-objective");
       if (MO_report_generation == nullptr)
-        throw runtime_error("MO_report_generation is not adjusted while problem mode is multi-objective");
+        throw runtime_error("MO_report_generation is not adjusted while problem mode is "
+                            "multi-objective");
     }
   }
 
@@ -750,7 +760,8 @@ protected:
     associate_to_references(g, norm_objectives, associated_ref_vector, distance_ref_vector, niche_count, distances);
 
     unsigned int last_front_index = 0;
-    // select from best fronts as long as they are accommodated in the population
+    // select from best fronts as long as they are accommodated in the
+    // population
     while (g2.chromosomes.size() + g.fronts[last_front_index].size() <= population)
     {
       for (unsigned int i : g.fronts[last_front_index])
@@ -1458,7 +1469,8 @@ protected:
     if (is_interactive())
     {
       if (N_add + elite_count != population)
-        throw runtime_error("In IGA mode, elite fraction + crossover fraction must be equal to 1.0 !");
+        throw runtime_error("In IGA mode, elite fraction + crossover fraction must be equal to "
+                            "1.0 !");
     }
 
     if (!multi_threading || N_threads == 1 || is_interactive())

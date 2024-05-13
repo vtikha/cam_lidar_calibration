@@ -4,8 +4,6 @@ project(cam_lidar_calibration)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-add_compile_options(-g)
-
 find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
@@ -23,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz
   sensor_msgs
   std_msgs
+  roslint
   )
 
 find_package(OpenCV REQUIRED)
@@ -139,7 +138,7 @@ install(DIRECTORY rviz/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz
   )
 
-catkin_install_python(PROGRAMS 
+catkin_install_python(PROGRAMS
   scripts/visualise_results.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

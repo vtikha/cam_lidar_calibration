@@ -15,10 +15,12 @@
  * Author: Darren Tsai
  */
 
-// Press 'i' to take a sample, Press 'o' to start optimization, Press 'e' to terminate node
+// Press 'i' to take a sample, Press 'o' to start optimization, Press 'e' to
+// terminate node
+#include <termios.h>
+
 #include "ros/ros.h"
 #include "std_msgs/Int8.h"
-#include <termios.h>
 
 int getch()
 {
@@ -70,7 +72,8 @@ int main(int argc, char** argv)
       flag.data = 4;
       sample_publisher.publish(flag);
     }
-    if (c == 'e')  // flag to terminate the node; if you do Ctrl+C, press enter after that
+    if (c == 'e')  // flag to terminate the node; if you do Ctrl+C, press enter
+                   // after that
     {
       ros::shutdown();
     }
