@@ -18,6 +18,7 @@ chessboard:
     height: 7
     width: 5  
   square_length: 95
+  marker_length: 65
   board_dimension:
     width: 594
     height: 841

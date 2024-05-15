@@ -27,6 +27,7 @@ void loadParams(const ros::NodeHandle& n, initial_parameters_t& i_params_)
   n.getParam("lidar_topic", i_params_.lidar_topic);
   n.getParam("chessboard/pattern_size/width", cb_w);
   n.getParam("chessboard/pattern_size/height", cb_h);
+  n.getParam("chessboard/marker_length", i_params_.marker_length);
   i_params_.chessboard_pattern_size = cv::Size(cb_w, cb_h);
   n.getParam("chessboard/square_length", i_params_.square_length);
   n.getParam("chessboard/board_dimension/width", w);
@@ -46,17 +47,21 @@ void loadParams(const ros::NodeHandle& n, initial_parameters_t& i_params_)
   std::cout << "dist model is " << distortion_model << std::endl;
 
   if (distortion_model == "equidistant" or distortion_model == "fisheye") {
-      i_params.fisheye_model = true;
+      i_params_.fisheye_model = true;
   // Pinhole
   } else 
   {
-      i_params.fisheye_model = false;
+      i_params_.fisheye_model = false;
   }        
 
   i_params_.cameramat.at<double>(0, 0) = K[0];
+  i_params_.cameramat.at<double>(0, 1) = 0.0;
   i_params_.cameramat.at<double>(0, 2) = K[2];
+  i_params_.cameramat.at<double>(1, 0) = 0.0;
   i_params_.cameramat.at<double>(1, 1) = K[4];
   i_params_.cameramat.at<double>(1, 2) = K[5];
+  i_params_.cameramat.at<double>(2, 0) = 0.0;
+  i_params_.cameramat.at<double>(2, 1) = 0.0;
   i_params_.cameramat.at<double>(2, 2) = 1;
 
   i_params_.distcoeff.at<double>(0) = D[0];

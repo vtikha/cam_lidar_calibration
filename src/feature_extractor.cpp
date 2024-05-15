@@ -69,11 +69,13 @@ FeatureExtractor::FeatureExtractor()
   private_nh_.getParam("import_samples", import_samples);
   private_nh_.getParam("num_lowestvoq", num_lowestvoq_);
   private_nh_.getParam("distance_offset_mm", distance_offset_);
-  i_params.cameramat = cv::Mat::zeros(3, 3, CV_64F);
-  i_params.distcoeff = cv::Mat::eye(1, 14, CV_64F);
+  i_params_.cameramat = cv::Mat::zeros(3, 3, CV_64F);
+  i_params_.distcoeff = cv::Mat::eye(1, 14, CV_64F);
   loadParams(public_nh_, i_params_);
-  std::cout << "FeatureExtractor: camera matrix " << i_params.cameramat << std::endl;
-  std::cout << "FeatureExtractor: distcoeff " << i_params.distcoeff << std::endl;
+  board_height_ = i_params_.board_dimensions.height;
+  board_width_ = i_params_.board_dimensions.width;
+  std::cout << "FeatureExtractor: camera matrix " << i_params_.cameramat << std::endl;
+  std::cout << "FeatureExtractor: distcoeff " << i_params_.distcoeff << std::endl;
 
   optimiser_ = std::make_shared<Optimiser>(i_params_);
   ROS_INFO("Input parameters loaded");
@@ -103,7 +105,7 @@ FeatureExtractor::FeatureExtractor()
   samples_pub_ = private_nh_.advertise<visualization_msgs::MarkerArray>("collected_samples", 0);
   image_publisher_ = it_->advertise("camera_features", 1);
 
-  valid_camera_info_ = false;
+  valid_camera_info_ = true;
   // i_params_.cameramat = cv::Mat::zeros(3, 3, CV_64F);
   // i_params_.distcoeff = cv::Mat::eye(1, 4, CV_64F);
   camera_info_sub_ = public_nh_.subscribe(i_params_.camera_info, 20, &FeatureExtractor::callback_camerainfo, this);
@@ -131,6 +133,10 @@ FeatureExtractor::FeatureExtractor()
     }
     newdata_folder_ = data_dir + "/" + curdatetime_;
   }
+
+  dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+  ch_board_ = cv::aruco::CharucoBoard::create(i_params_.chessboard_pattern_size.width+1, i_params_.chessboard_pattern_size.height+1, i_params_.square_length, i_params_.marker_length, dictionary_);
+  
 
   ROS_INFO("Finished init cam_lidar_calibration");
 }
@@ -164,7 +170,7 @@ void FeatureExtractor::callback_camerainfo(const sensor_msgs::CameraInfo::ConstP
   // {
   //   ROS_FATAL_STREAM("Camera model " << msg->distortion_model << " not supported");
   // }
-  // valid_camera_info_ = true;
+  valid_camera_info_ = true;
 }
 
 bool FeatureExtractor::serviceCB(Optimise::Request& req, Optimise::Response& res)
@@ -629,8 +635,8 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
     }
   }
 
-  ROS_WARN_STREAM("chessboardProjection(): K " << i_params.cameramat);
-  ROS_WARN_STREAM("chessboardProjection(): D " << i_params.distcoeff);
+  ROS_WARN_STREAM("chessboardProjection(): K " << i_params_.cameramat);
+  ROS_WARN_STREAM("chessboardProjection(): D " << i_params_.distcoeff);
 
   // chessboard corners, middle square corners, board corners and centre
   std::vector<cv::Point3d> board_corners_3d;
@@ -646,6 +652,7 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
 
   board_corners_3d.push_back(cv::Point3d((board_width_ - i_params_.cb_translation_error.x) / 2.0,
                                          -(board_height_ + i_params_.cb_translation_error.y) / 2.0, 0.0));
+
   // Board centre coordinates from the centre of the chessboard (due to
   // incorrect placement of chessboard on board)
   board_corners_3d.push_back(
@@ -689,31 +696,31 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
 
   for (std::size_t i = 0; i < board_image_pixels.size(); i++)
   {
-    if (i == 0)
+     if (i == 0)
     {
-      cv::circle(cv_ptr->image, board_image_pixels[i], 4, CV_RGB(255, 0, 0), -1);
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(255, 0, 0), -1);
     }
     else if (i == 1)
     {
-      cv::circle(cv_ptr->image, board_image_pixels[i], 4, CV_RGB(0, 255, 0), -1);
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 255, 0), -1);
     }
     else if (i == 2)
     {
-      cv::circle(cv_ptr->image, board_image_pixels[i], 4, CV_RGB(0, 0, 255), -1);
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 0, 255), -1);
     }
     else if (i == 3)
     {
-      cv::circle(cv_ptr->image, board_image_pixels[i], 4, CV_RGB(255, 255, 0), -1);
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(255, 255, 0), -1);
     }
     else if (i == 4)
     {
-      cv::circle(cv_ptr->image, board_image_pixels[i], 4, CV_RGB(0, 255, 255), -1);
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 255, 255), -1);
     }
   }
 
   for (auto& point : inner_cbcorner_pixels)
   {
-    cv::circle(cv_ptr->image, point, 3, CV_RGB(255, 0, 0), -1);
+    cv::circle(cv_ptr->image, point, 4, CV_RGB(255, 0, 0), -1);
   }
 
   double pixdiagonal = sqrt(pow(inner_cbcorner_pixels.front().x - inner_cbcorner_pixels.back().x, 2) +
@@ -724,6 +731,9 @@ auto FeatureExtractor::chessboardProjection(const std::vector<cv::Point2d>& corn
 
   metreperpixel_cbdiag_ = len_diagonal / (1000 * pixdiagonal);
 
+  ROS_WARN_STREAM(" chessboardProjection(): pixdiagonal " << pixdiagonal);
+  ROS_WARN_STREAM(" chessboardProjection(): len_diagonal " << len_diagonal);
+  ROS_WARN_STREAM(" chessboardProjection(): metreperpixel_cbdiag_ " << metreperpixel_cbdiag_);
   ROS_WARN_STREAM(" chessboardProjection(): rvec " << rvec);
   ROS_WARN_STREAM(" chessboardProjection(): tvec " << tvec);
 
@@ -766,6 +776,212 @@ FeatureExtractor::locateChessboard(const sensor_msgs::Image::ConstPtr& image)
   }
 
   auto [rvec, tvec, board_corners_3d] = chessboardProjection(corners, cv_ptr);
+
+  cv::Mat rmat;
+  cv::Rodrigues(rvec, rmat);
+  cv::Mat z = cv::Mat(cv::Point3d(0., 0., -1.));  // TODO: why is this normal -1 in z? Surabhi's is just 1
+  auto chessboard_normal = rmat * z;
+
+  std::vector<cv::Point3d> corner_vectors;
+  for (auto& corner : board_corners_3d)
+  {
+    cv::Mat m(rmat * cv::Mat(corner).reshape(1) + tvec);
+    corner_vectors.push_back(cv::Point3d(m));
+  }
+
+  // Publish the image with all the features marked in it
+  ROS_INFO("Publishing chessboard image");
+  image_publisher_.publish(cv_ptr->toImageMsg());
+  return std::make_tuple(corner_vectors, chessboard_normal);
+}
+
+auto FeatureExtractor::charucoboardProjection(const std::vector<cv::Point2f>& corners, std::vector<int> ids, const cv_bridge::CvImagePtr& cv_ptr)
+{
+  // Find the charucoboard in 3D space - in it's own object frame (position is
+  // arbitrary, so we place it flat)
+
+  cv::Point3d chessboard_bleft_corner((i_params_.chessboard_pattern_size.width - 1) * i_params_.square_length / 2,
+                                      (i_params_.chessboard_pattern_size.height - 1) * i_params_.square_length / 2, 0);
+
+  std::vector<cv::Point3d> corners_3d;
+  for (int y = 0; y < i_params_.chessboard_pattern_size.height; y++)
+  {
+    for (int x = 0; x < i_params_.chessboard_pattern_size.width; x++)
+    {
+      corners_3d.push_back(cv::Point3d(x, y, 0) * i_params_.square_length - chessboard_bleft_corner);
+    }
+  }
+
+  // chessboard corners, middle square corners, board corners and centre
+  std::vector<cv::Point3d> board_corners_3d;
+  // Board corner coordinates from the centre of the chessboard
+  board_corners_3d.push_back(cv::Point3d((board_width_ - i_params_.cb_translation_error.x) / 2.0,
+                                         (board_height_ - i_params_.cb_translation_error.y) / 2.0, 0.0));
+
+  board_corners_3d.push_back(cv::Point3d(-(board_width_ + i_params_.cb_translation_error.x) / 2.0,
+                                         (board_height_ - i_params_.cb_translation_error.y) / 2.0, 0.0));
+
+  board_corners_3d.push_back(cv::Point3d(-(board_width_ + i_params_.cb_translation_error.x) / 2.0,
+                                         -(board_height_ + i_params_.cb_translation_error.y) / 2.0, 0.0));
+
+  board_corners_3d.push_back(cv::Point3d((board_width_ - i_params_.cb_translation_error.x) / 2.0,
+                                         -(board_height_ + i_params_.cb_translation_error.y) / 2.0, 0.0));
+
+  // Board centre coordinates from the centre of the chessboard (due to
+  // incorrect placement of chessboard on board)
+  board_corners_3d.push_back(
+      cv::Point3d(-i_params_.cb_translation_error.x / 2.0, -i_params_.cb_translation_error.y / 2.0, 0.0));
+
+  std::vector<cv::Point2d> inner_cbcorner_pixels, board_image_pixels;
+  cv::Mat rvec(3, 3, cv::DataType<double>::type);  // Initialization for pinhole
+                                                   // and fisheye cameras
+  cv::Mat tvec(3, 1, cv::DataType<double>::type);
+
+  if (valid_camera_info_)
+  {
+    if (i_params_.fisheye_model)
+    {
+      // Undistort the image by applying the fisheye intrinsic parameters
+      // the final input param is the camera matrix in the new or rectified
+      // coordinate frame. We put this to be the same as i_params_.cameramat or
+      // else it will be set to empty matrix by default.
+      std::vector<cv::Point2d> corners_undistorted;
+      cv::fisheye::undistortPoints(corners, corners_undistorted, i_params_.cameramat, i_params_.distcoeff,
+                                   i_params_.cameramat);
+      auto valid = cv::aruco::estimatePoseCharucoBoard(corners_undistorted, ids, ch_board_, i_params_.cameramat, cv::noArray(), rvec, tvec);
+      // translate the origin to the center of the chessboard
+      Eigen::Vector3d chessboard_center_corner((i_params_.chessboard_pattern_size.width + 1) * i_params_.square_length / 2,
+                                               (i_params_.chessboard_pattern_size.height + 1) * i_params_.square_length / 2, 0);
+
+      // Modify rvec, tvec to match the position and orientation of the chessboard frame
+      cv::Mat rot_mat;
+      cv::Rodrigues(rvec, rot_mat);
+      Eigen::Matrix3d rot_mat_eigen;
+      cv::cv2eigen(rot_mat, rot_mat_eigen);
+      Eigen::Vector3d tvec_eigen;
+      cv::cv2eigen(tvec, tvec_eigen);     
+      tvec_eigen = tvec_eigen + rot_mat_eigen * chessboard_center_corner;
+      cv::eigen2cv(tvec_eigen, tvec);
+      // Flip the z and x axes
+      rot_mat_eigen.col(2) = -rot_mat_eigen.col(2);
+      rot_mat_eigen.col(0) = -rot_mat_eigen.col(0);
+      cv::eigen2cv(rot_mat_eigen, rot_mat);
+      cv::Rodrigues(rot_mat, rvec);
+      cv::fisheye::projectPoints(corners_3d, inner_cbcorner_pixels, rvec, tvec, i_params_.cameramat,
+                                 i_params_.distcoeff);
+      cv::fisheye::projectPoints(board_corners_3d, board_image_pixels, rvec, tvec, i_params_.cameramat,
+                                 i_params_.distcoeff);
+    }
+    else
+    {
+      // Pinhole model
+      auto valid = cv::aruco::estimatePoseCharucoBoard(corners, ids, ch_board_, i_params_.cameramat, i_params_.distcoeff, rvec, tvec);
+      // translate the origin to the center of the chessboard
+      Eigen::Vector3d chessboard_center_corner((i_params_.chessboard_pattern_size.width + 1) * i_params_.square_length / 2,
+                                               (i_params_.chessboard_pattern_size.height + 1) * i_params_.square_length / 2, 0);
+
+      // Modify rvec, tvec to match the position and orientation of the chessboard frame
+      cv::Mat rot_mat;
+      cv::Rodrigues(rvec, rot_mat);
+      Eigen::Matrix3d rot_mat_eigen;
+      cv::cv2eigen(rot_mat, rot_mat_eigen);
+      Eigen::Vector3d tvec_eigen;
+      cv::cv2eigen(tvec, tvec_eigen);     
+      tvec_eigen = tvec_eigen + rot_mat_eigen * chessboard_center_corner;
+      cv::eigen2cv(tvec_eigen, tvec);
+      // Flip the z and x axes
+      rot_mat_eigen.col(2) = -rot_mat_eigen.col(2);
+      rot_mat_eigen.col(0) = -rot_mat_eigen.col(0);
+      cv::eigen2cv(rot_mat_eigen, rot_mat);
+      cv::Rodrigues(rot_mat, rvec);
+      cv::projectPoints(corners_3d, rvec, tvec, i_params_.cameramat, i_params_.distcoeff, inner_cbcorner_pixels);
+      cv::projectPoints(board_corners_3d, rvec, tvec, i_params_.cameramat, i_params_.distcoeff, board_image_pixels);
+    }
+  }
+  else
+  {
+    ROS_FATAL("No msgs from /camera_info - check camera_info topic in "
+              "cfg/params.yaml is correct and is being published");
+  }
+
+  for (std::size_t i = 0; i < board_image_pixels.size(); i++)
+  {
+    if (i == 4)
+    {
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(255, 0, 0), -1);
+    }
+    else if (i == 3)
+    {
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 255, 0), -1);
+    }
+    else if (i == 2)
+    {
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 0, 255), -1);
+    }
+    else if (i == 1)
+    {
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(255, 255, 0), -1);
+    }
+    else if (i == 0)
+    {
+      cv::circle(cv_ptr->image, board_image_pixels[i], 6, CV_RGB(0, 255, 255), -1);
+    }
+  }
+
+  for (auto& point : inner_cbcorner_pixels)
+  {
+    cv::circle(cv_ptr->image, point, 4, CV_RGB(0, 0, 255), -1);
+  }
+
+  double pixdiagonal = sqrt(pow(inner_cbcorner_pixels.front().x - inner_cbcorner_pixels.back().x, 2) +
+                            (pow(inner_cbcorner_pixels.front().y - inner_cbcorner_pixels.back().y, 2)));
+
+  double len_diagonal =
+      sqrt(pow(corners_3d.front().x - corners_3d.back().x, 2) + (pow(corners_3d.front().y - corners_3d.back().y, 2)));
+
+  metreperpixel_cbdiag_ = len_diagonal / (1000 * pixdiagonal);
+
+  ROS_WARN_STREAM(" charucoboardProjection(): pixdiagonal " << pixdiagonal);
+  ROS_WARN_STREAM(" charucoboardProjection(): len_diagonal " << len_diagonal);
+  ROS_WARN_STREAM(" charucoboardProjection(): metreperpixel_cbdiag_ " << metreperpixel_cbdiag_);
+  ROS_WARN_STREAM(" charucoboardProjection(): rvec " << rvec);
+  ROS_WARN_STREAM(" charucoboardProjection(): tvec " << tvec);
+
+  // Return all the necessary coefficients
+  return std::make_tuple(rvec, tvec, board_corners_3d);
+}
+
+std::tuple<std::vector<cv::Point3d>, cv::Mat>
+FeatureExtractor::locateCharucoboard(const sensor_msgs::Image::ConstPtr& image)
+{
+  // Convert to OpenCV image object
+  cv_bridge::CvImagePtr cv_ptr;
+  cv_ptr = cv_bridge::toCvCopy(image, sensor_msgs::image_encodings::BGR8);
+
+  cv::Mat gray;
+  cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
+  cv::imwrite("/root/ws_lab0/src/cam_lidar_calibration/data/board_2.png", gray);
+  // Find charuco board pattern in the image
+  std::vector<int> marker_ids;
+  std::vector<std::vector<cv::Point2f>> marker_corners, rejected_candidates;
+  cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
+  cv::aruco::detectMarkers(gray, dictionary_, marker_corners, marker_ids, parameters, rejected_candidates);
+  
+  if (marker_ids.empty())
+  {
+    ROS_WARN("No charuco found");
+    std::vector<cv::Point3d> empty_corners;
+    cv::Mat empty_normal;
+    return std::make_tuple(empty_corners, empty_normal);
+  }
+
+  ROS_INFO("Charuco board found");
+  // Find corner points with sub-pixel accuracy
+  std::vector<cv::Point2f> cornersf;
+  std::vector<int> corners_ids;
+  cv::aruco::interpolateCornersCharuco(marker_corners, marker_ids, gray, ch_board_, cornersf, corners_ids);
+
+  auto [rvec, tvec, board_corners_3d] = charucoboardProjection(cornersf, corners_ids, cv_ptr);
 
   cv::Mat rmat;
   cv::Rodrigues(rvec, rmat);
@@ -957,7 +1173,7 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
   T(2, 2) = cos(theta);
 
   // You can either apply transform_1 or transform_2; they are the same
-  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
+  // pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
 
   Eigen::Affine3f T1 = Eigen::Affine3f::Identity();
   theta = - M_PI / 2; // 90 degrees in radians    // Rotate around z-axis
@@ -967,7 +1183,7 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
   T1(1, 1) = cos(theta);
 
   // You can either apply transform_1 or transform_2; they are the same
-  pcl::transformPointCloud (*transformed_cloud, *transformed_cloud, T1);
+  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T1);
 
 
   // Check if we have deduced the lidar ring count
@@ -1040,20 +1256,20 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
       // If it is the first five samples get the mean dimensions of the board
       if (pc_samples_.size() == 5)
       {
-        double sum_height = 0.0f;
-        double sum_width = 0.0f;
+        // double sum_height = 0.0f;
+        // double sum_width = 0.0f;
 
-        for (std::size_t i = 0; i < samples_.size(); i++)
-        {
-          sum_height += samples_[i].heights[0] + samples_[i].heights[1];
-          sum_width += samples_[i].widths[0] + samples_[i].widths[1];
-        }
+        // for (std::size_t i = 0; i < samples_.size(); i++)
+        // {
+        //   sum_height += samples_[i].heights[0] + samples_[i].heights[1];
+        //   sum_width += samples_[i].widths[0] + samples_[i].widths[1];
+        // }
 
-        board_height_ = sum_height / (samples_.size() * 2);
-        board_width_ = sum_width / (samples_.size() * 2);
+        // board_height_ = sum_height / (samples_.size() * 2);
+        // board_width_ = sum_width / (samples_.size() * 2);
 
-        printf("Board height = %6.2fmm \n", board_height_);
-        printf("Board width  = %6.2fmm \n", board_width_);
+        ROS_WARN("Board height = %6.2fmm \n", board_height_);
+        ROS_WARN("Board width  = %6.2fmm \n", board_width_);
       }
       else  // For every other sample get the dimensions and compare to the first one
       {
@@ -1303,25 +1519,33 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
       save_samples.open(savesamplespath, std::ios_base::out | std::ios_base::trunc) ;
 
       for (OptimisationSample s : optimiser_->samples){
-          save_samples << s.camera_centre.x << "," << s.camera_centre.y << "," << s.camera_centre.z << "\n";
-          save_samples << s.camera_normal.x << "," << s.camera_normal.y << "," << s.camera_normal.z << "\n";
-          for (auto cc : s.camera_corners) {
-              save_samples << cc.x << "," << cc.y << "," << cc.z << "\n";
-          }
-          save_samples << s.lidar_centre.x << "," << s.lidar_centre.y << "," << s.lidar_centre.z << "\n";
-          save_samples << s.lidar_normal.x << "," << s.lidar_normal.y << "," << s.lidar_normal.z << "\n";
-          for (auto lc : s.lidar_corners) {
-              save_samples << lc.x << "," << lc.y << "," << lc.z << "\n";
-          }
-          save_samples << s.angles_0[0] << "," << s.angles_0[1] << ",0\n";
-          save_samples << s.angles_1[0] << "," << s.angles_1[1] << ",0\n";
-          save_samples << s.widths[0] << "," << s.widths[1] << ",0\n";
-          save_samples << s.heights[0] << "," << s.heights[1] << ",0\n";
-          save_samples << s.distance_from_origin << ",0,0\n";
-          save_samples << s.pixeltometre << ",0,0\n";
-          save_samples << s.sample_num << ",0,0\n";
+        save_samples << s.camera_centre.x << "," << s.camera_centre.y << "," << s.camera_centre.z << "\n";
+        save_samples << s.camera_normal.x << "," << s.camera_normal.y << "," << s.camera_normal.z << "\n";
+
+        for (auto cc : s.camera_corners)
+        {
+          save_samples << cc.x << "," << cc.y << "," << cc.z << "\n";
+        }
+
+        save_samples << s.lidar_centre.x << "," << s.lidar_centre.y << "," << s.lidar_centre.z << "\n";
+        save_samples << s.lidar_normal.x << "," << s.lidar_normal.y << "," << s.lidar_normal.z << "\n";
+
+        for (auto lc : s.lidar_corners)
+        {
+          save_samples << lc.x << "," << lc.y << "," << lc.z << "\n";
+        }
+
+        save_samples << s.angles[0] << "," << s.angles[1] << ",0\n";
+        save_samples << s.angles[0] << "," << s.angles[1] << ",0\n";
+        save_samples << s.widths[0] << "," << s.widths[1] << ",0\n";
+        save_samples << s.heights[0] << "," << s.heights[1] << ",0\n";
+        save_samples << s.distance_from_origin << ",0,0\n";
+        save_samples << s.pixeltometre << ",0,0\n";
+        save_samples << s.sample_num << ",0,0\n";
       }
       save_samples.close();
+
+      
       ROS_INFO_STREAM("Samples written to file: " << savesamplespath);
       ROS_INFO_STREAM("All " << optimiser_->samples.size() << " samples saved");
 
@@ -1333,7 +1557,8 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
     }
     else
     {
-      auto [corner_vectors, chessboard_normal] = locateChessboard(image);
+      //auto [corner_vectors, chessboard_normal] = locateChessboard(image);
+      auto [corner_vectors, chessboard_normal] = locateCharucoboard(image);
       if (corner_vectors.size() == 0)
       {
         flag = Optimise::Request::READY;

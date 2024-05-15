@@ -15,6 +15,8 @@
  * Author: Darren Tsai
  */
 
+ #pragma once
+
 #include <actionlib/server/simple_action_server.h>
 #include <cam_lidar_calibration/Optimise.h>
 #include <cam_lidar_calibration/RunOptimiseAction.h>
@@ -30,9 +32,11 @@
 #include <pcl/point_cloud.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <flann/flann.hpp>
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/persistence.hpp>
+#include <opencv2/aruco/charuco.hpp>
 
 #include "cam_lidar_calibration/load_params.h"
 #include "cam_lidar_calibration/optimiser.h"
@@ -69,8 +73,10 @@ private:
                    pcl::PointCloud<pcl::PointXYZIR>::Ptr& output_pc);
 
   std::tuple<std::vector<cv::Point3d>, cv::Mat> locateChessboard(const sensor_msgs::Image::ConstPtr& image);
+  std::tuple<std::vector<cv::Point3d>, cv::Mat> locateCharucoboard(const sensor_msgs::Image::ConstPtr& image);
 
   auto chessboardProjection(const std::vector<cv::Point2d>& corners, const cv_bridge::CvImagePtr& cv_ptr);
+  auto charucoboardProjection(const std::vector<cv::Point2f>& corners, std::vector<int> ids, const cv_bridge::CvImagePtr& cv_ptr);
 
   void publishBoardPointCloud();
 
@@ -127,6 +133,9 @@ private:
   bool valid_camera_info_;
   ros::NodeHandle private_nh_;
   ros::NodeHandle public_nh_;
+
+  cv::Ptr<cv::aruco::Dictionary> dictionary_;
+  cv::Ptr<cv::aruco::CharucoBoard> ch_board_;
 
   std::vector<pcl::PointCloud<pcl::PointXYZIR>::Ptr> background_pc_samples_;
   double board_width_ = 0.0f;
