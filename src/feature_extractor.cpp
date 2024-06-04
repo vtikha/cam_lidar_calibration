@@ -200,7 +200,10 @@ bool FeatureExtractor::serviceCB(Optimise::Request& req, Optimise::Response& res
   flag = req.operation;  // read flag published by rviz calibration panel
 
   // Wait for operation to complete
-  while (flag == Optimise::Request::CAPTURE || flag == Optimise::Request::CAPTURE_BCKGRND) {}
+  while (flag == Optimise::Request::CAPTURE || flag == Optimise::Request::CAPTURE_BCKGRND) 
+  {
+    ros::Duration(0.1).sleep();
+  }
 
   res.samples = optimiser_->samples.size();
   return true;
