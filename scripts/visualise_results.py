@@ -119,7 +119,7 @@ def visualise_results(gauss, nbins_list, degree):
         ax[r, c].plot(x, y, "b-", color="black")
         ax[r, c].set_xlabel(param["key"] + " (" + param["metric"] + ")")
         ax[r, c].set_ylabel("Frequency")
-        ax[r, c].set_ylim(0, max(y) + float(max(y)) / 5)
+        # ax[r, c].set_ylim(0, max(y) + float(max(y)) / 5)
         ax[r, c].yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         if degree and idx > 2:
             ax[r, c].xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
