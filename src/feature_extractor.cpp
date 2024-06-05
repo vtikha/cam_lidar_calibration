@@ -1176,7 +1176,7 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
   T(2, 2) = cos(theta);
 
   // You can either apply transform_1 or transform_2; they are the same
-  // pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
+  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T);
 
   Eigen::Affine3f T1 = Eigen::Affine3f::Identity();
   theta = - M_PI / 2; // 90 degrees in radians    // Rotate around z-axis
@@ -1186,7 +1186,7 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
   T1(1, 1) = cos(theta);
 
   // You can either apply transform_1 or transform_2; they are the same
-  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T1);
+  pcl::transformPointCloud (*transformed_cloud, *transformed_cloud, T1);
 
 
   // Check if we have deduced the lidar ring count
