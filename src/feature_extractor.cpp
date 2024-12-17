@@ -1184,7 +1184,7 @@ void FeatureExtractor::extractRegionOfInterest(const sensor_msgs::Image::ConstPt
   T1(1, 0) = -sin(theta);
   T1(1, 1) = cos(theta);
 
-  pcl::transformPointCloud (*transformed_cloud, *transformed_cloud, T1);
+  pcl::transformPointCloud (*pointcloud, *transformed_cloud, T1);
 
 
   // Check if we have deduced the lidar ring count
